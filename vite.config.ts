@@ -1,10 +1,10 @@
-import { cloudflare } from '@cloudflare/vite-plugin'
-import react from '@vitejs/plugin-react-swc'
 import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'      // <-- Babel-based
+import { cloudflare } from '@cloudflare/vite-plugin'
 
-// https://vitejs.dev/config/
-export default defineConfig(() => {
-	return {
-		plugins: [cloudflare(), react()],
-	}
+export default defineConfig({
+  plugins: [
+    cloudflare(), 
+    react(),      // use Babel-based plugin instead of SWC
+  ],
 })
