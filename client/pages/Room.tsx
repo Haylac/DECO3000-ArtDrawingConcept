@@ -1,38 +1,74 @@
 import { useSync } from '@tldraw/sync'
 import { ReactNode, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Tldraw } from 'tldraw'
+import { Tldraw, Editor, TLUiComponents } from 'tldraw'
 import { getBookmarkPreview } from '../getBookmarkPreview'
 import { multiplayerAssetStore } from '../multiplayerAssetStore'
+
+// Hide all UI components
+//https://tldraw.dev/examples/ui-components-hidden
+const components: Required<TLUiComponents> = {
+	ContextMenu: null,
+	ActionsMenu: null,
+	HelpMenu: null,
+	ZoomMenu: null,
+	MainMenu: null,
+	Minimap: null,
+	//StylePanel: null,
+	PageMenu: null,
+	NavigationPanel: null,
+	//Toolbar: null,
+	KeyboardShortcutsDialog: null,
+	QuickActions: null,
+	HelperButtons: null,
+	DebugPanel: null,
+	DebugMenu: null,
+	SharePanel: null,
+	MenuPanel: null,
+	TopPanel: null,
+	CursorChatBubble: null,
+	RichTextToolbar: null,
+	ImageToolbar: null,
+	VideoToolbar: null,
+	Dialogs: null,
+	Toasts: null,
+	A11y: null,
+	FollowingIndicator: null,
+}
 
 export function Room() {
 	const { roomId } = useParams<{ roomId: string }>()
 
-	// Create a store connected to multiplayer.
-	const store = useSync({
-		// We need to know the websockets URI...
-		uri: `${window.location.origin}/api/connect/${roomId}`,
-		// ...and how to handle static assets like images & videos
-		assets: multiplayerAssetStore,
-	})
+	// Create stores for two separate instances
+	const storeA = useSync({ uri: `${window.location.origin}/api/connect/${roomId}-A`, assets: multiplayerAssetStore })
+	const storeB = useSync({ uri: `${window.location.origin}/api/connect/${roomId}-B`, assets: multiplayerAssetStore })
+
+	const [activeStore, setActiveStore] = useState<'A' | 'B'>('A')
+	const currentStore = activeStore === 'A' ? storeA : storeB
+
+	const handleMount = (editor: Editor) => {
+		editor.registerExternalAssetHandler('url', getBookmarkPreview)
+		// onMount expects void, so we return nothing
+	}
 
 	return (
-		<RoomWrapper roomId={roomId}>
-			<Tldraw
-				// we can pass the connected store into the Tldraw component which will handle
-				// loading states & enable multiplayer UX like cursors & a presence menu
-				store={store}
-				deepLinks
-				onMount={(editor) => {
-					// when the editor is ready, we need to register our bookmark unfurling service
-					editor.registerExternalAssetHandler('url', getBookmarkPreview)
-				}}
-			/>
+		<RoomWrapper roomId={roomId} activeStore={activeStore} setActiveStore={setActiveStore}>
+			<Tldraw store={currentStore} deepLinks onMount={handleMount} components={components} />
 		</RoomWrapper>
 	)
 }
 
-function RoomWrapper({ children, roomId }: { children: ReactNode; roomId?: string }) {
+function RoomWrapper({
+	children,
+	roomId,
+	activeStore,
+	setActiveStore,
+}: {
+	children: ReactNode
+	roomId?: string
+	activeStore: 'A' | 'B'
+	setActiveStore: (v: 'A' | 'B') => void
+}) {
 	const [didCopy, setDidCopy] = useState(false)
 
 	useEffect(() => {
@@ -56,6 +92,14 @@ function RoomWrapper({ children, roomId }: { children: ReactNode; roomId?: strin
 				>
 					Copy link
 					{didCopy && <div className="RoomWrapper-copied">Copied!</div>}
+				</button>
+
+				{/* Button to switch between instances */}
+				<button
+					onClick={() => setActiveStore(activeStore === 'A' ? 'B' : 'A')}
+					style={{ marginLeft: '12px' }}
+				>
+					Switch Canvas ({activeStore})
 				</button>
 			</div>
 			<div className="RoomWrapper-content">{children}</div>
